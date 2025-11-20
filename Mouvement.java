@@ -1,3 +1,4 @@
+
 public class Mouvement
 {
     private Position depart;
@@ -63,6 +64,21 @@ public class Mouvement
         }
 
         return false;
+    }
+
+    public boolean estValideAvecCaptureObligatoire(Plateau plateau, Pion pion, Joueur joueur)
+    {
+        if (!estValide(plateau, pion))
+        {
+            return false;
+        }
+
+        if (plateau.joueurPeutCapturer(joueur))
+        {
+            return estCapture();
+        }
+
+        return true;
     }
 
     private boolean estMouvementSimpleValide(Pion pion, int directionLigne)
@@ -144,19 +160,15 @@ public class Mouvement
 
     public Position obtenirCaseCapturee()
     {
-        // Pour les pions normaux (distance de 2)
         int distance = Math.abs(depart.distanceLigne(arrivee));
         if (distance == 2)
         {
             return depart.positionMilieu(arrivee);
         }
         
-        // Pour les dames (distance > 2), trouver le pion sur le chemin
         int directionLigne = (depart.getLigne() < arrivee.getLigne()) ? 1 : -1;
         int directionColonne = (depart.getColonne() < arrivee.getColonne()) ? 1 : -1;
         
-        // Pour une dame, on retourne la position juste avant l'arrivée
-        // car c'est là que se trouve le pion capturé
         return new Position(arrivee.getLigne() - directionLigne, arrivee.getColonne() - directionColonne);
     }
 }

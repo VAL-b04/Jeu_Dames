@@ -1,4 +1,5 @@
 import java.awt.Color;
+import java.util.List;
 
 public class Gestionnaire_Interface
 {
@@ -6,6 +7,8 @@ public class Gestionnaire_Interface
     private int taillePlateau;
     private Position caseSelectionnee;
     private boolean pionSelectionne;
+    private Rafle rafleEnCours;
+    private int etapeRafle;
 
     public Gestionnaire_Interface(int tailleCase, int taillePlateau)
     {
@@ -13,6 +16,8 @@ public class Gestionnaire_Interface
         this.taillePlateau = taillePlateau;
         this.caseSelectionnee = null;
         this.pionSelectionne = false;
+        this.rafleEnCours = null;
+        this.etapeRafle = 0;
     }
 
     public void initialiserFenetre()
@@ -26,61 +31,127 @@ public class Gestionnaire_Interface
         StdDraw.enableDoubleBuffering();
     }
 
-    public void afficher(Plateau plateau, Joueur joueurActuel)
+    public void afficher(Plateau plateau, Joueur joueurActuel, List<Rafle> raflesDisponibles)
     {
         StdDraw.clear(StdDraw.WHITE);
-        dessinerCases(plateau);
-        dessinerCasesDisponibles(plateau);
+        dessinerCases(plateau, raflesDisponibles);
+        dessinerCheminRafle();
+        dessinerCasesDisponibles(plateau, joueurActuel, raflesDisponibles);
         dessinerPions(plateau);
-        afficherInfosJoueur(joueurActuel);
+        afficherInfosJoueur(joueurActuel, raflesDisponibles);
         StdDraw.show();
     }
 
-    private void dessinerCases(Plateau plateau)
+    private void dessinerCases(Plateau plateau, List<Rafle> raflesDisponibles)
     {
         for (int i = 0; i < taillePlateau; i++)
         {
             for (int j = 0; j < taillePlateau; j++)
             {
-                dessinerCase(i, j);
+                dessinerCase(i, j, plateau, raflesDisponibles);
             }
         }
     }
 
-    private void dessinerCasesDisponibles(Plateau plateau)
+    private void dessinerCheminRafle()
     {
-        if (!pionSelectionne || caseSelectionnee == null)
+        if (rafleEnCours == null || rafleEnCours.getChemin().size() <= 1) return;
+        
+        List<Position> chemin = rafleEnCours.getChemin();
+        StdDraw.setPenColor(new Color(255, 100, 0, 150));
+        StdDraw.setPenRadius(0.01);
+        
+        for (int i = 0; i < chemin.size() - 1; i++)
         {
-            return;
+            Position p1 = chemin.get(i);
+            Position p2 = chemin.get(i + 1);
+            
+            double x1 = p1.getColonne() * tailleCase + tailleCase / 2.0;
+            double y1 = p1.getLigne() * tailleCase + tailleCase / 2.0;
+            double x2 = p2.getColonne() * tailleCase + tailleCase / 2.0;
+            double y2 = p2.getLigne() * tailleCase + tailleCase / 2.0;
+            
+            StdDraw.line(x1, y1, x2, y2);
         }
+        
+        StdDraw.setPenRadius();
+    }
 
+    private void dessinerCasesDisponibles(Plateau plateau, Joueur joueurActuel, List<Rafle> raflesDisponibles)
+    {
+        if (!pionSelectionne || caseSelectionnee == null) return;
+        
         Pion pion = plateau.obtenirPion(caseSelectionnee);
-        if (pion == null)
+        if (pion == null) return;
+        
+        // Si on est en cours de rafle, montrer seulement les prochaines étapes possibles (en ROUGE)
+        if (rafleEnCours != null)
         {
-            return;
-        }
-
-        for (int i = 0; i < taillePlateau; i++)
-        {
-            for (int j = 0; j < taillePlateau; j++)
+            for (Rafle r : raflesDisponibles)
             {
-                Position destination = new Position(i, j);
-                Mouvement mouvement = new Mouvement(caseSelectionnee, destination);
-                
-                if (mouvement.estValide(plateau, pion))
+                if (r.getChemin().size() > etapeRafle + 1)
                 {
-                    double centreX = j * tailleCase + tailleCase / 2.0;
-                    double centreY = i * tailleCase + tailleCase / 2.0;
+                    Position prochaine = r.getChemin().get(etapeRafle + 1);
+                    dessinerIndicateurCase(prochaine, true); // Rouge car c'est une capture
+                }
+            }
+        }
+        else if (!raflesDisponibles.isEmpty())
+        {
+            // Si des rafles sont disponibles, afficher les captures possibles en ROUGE
+            for (Rafle r : raflesDisponibles)
+            {
+                if (r.getDepart().equals(caseSelectionnee) && r.getChemin().size() > 1)
+                {
+                    // Afficher toutes les étapes de la rafle en ROUGE
+                    for (int i = 1; i < r.getChemin().size(); i++)
+                    {
+                        Position etape = r.getChemin().get(i);
+                        dessinerIndicateurCase(etape, true); // Rouge car capture obligatoire
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Pas de captures obligatoires, afficher les mouvements simples en VERT
+            for (int i = 0; i < taillePlateau; i++)
+            {
+                for (int j = 0; j < taillePlateau; j++)
+                {
+                    Position destination = new Position(i, j);
+                    Mouvement mouvement = new Mouvement(caseSelectionnee, destination);
                     
-                    StdDraw.setPenColor(new Color(100, 200, 100, 180));
-                    StdDraw.filledCircle(centreX, centreY, tailleCase / 6.0);
+                    if (mouvement.estValide(plateau, pion))
+                    {
+                        dessinerIndicateurCase(destination, false); // Vert car mouvement simple
+                    }
                 }
             }
         }
     }
-
-    private void dessinerCase(int ligne, int colonne)
+    
+    private void dessinerIndicateurCase(Position pos, boolean estCapture)
     {
+        double centreX = pos.getColonne() * tailleCase + tailleCase / 2.0;
+        double centreY = pos.getLigne() * tailleCase + tailleCase / 2.0;
+        
+        if (estCapture)
+        {
+            // ROUGE pour les captures
+            StdDraw.setPenColor(new Color(255, 100, 100, 200));
+        }
+        else
+        {
+            // VERT pour les mouvements simples
+            StdDraw.setPenColor(new Color(100, 255, 100, 200));
+        }
+        StdDraw.filledCircle(centreX, centreY, tailleCase / 6.0);
+    }
+
+    private void dessinerCase(int ligne, int colonne, Plateau plateau, List<Rafle> raflesDisponibles)
+    {
+        // Couleur de base de la case
         if ((ligne + colonne) % 2 != 0)
         {
             StdDraw.setPenColor(139, 69, 19);
@@ -94,12 +165,43 @@ public class Gestionnaire_Interface
         double centreY = ligne * tailleCase + tailleCase / 2.0;
         StdDraw.filledSquare(centreX, centreY, tailleCase / 2.0);
 
+        // Contour pour le pion sélectionné
         if (pionSelectionne && caseSelectionnee != null && ligne == caseSelectionnee.getLigne() && colonne == caseSelectionnee.getColonne())
         {
-            StdDraw.setPenColor(50, 205, 50);
+            // Si des rafles sont disponibles, contour ROUGE pour indiquer capture obligatoire
+            if (!raflesDisponibles.isEmpty())
+            {
+                StdDraw.setPenColor(255, 50, 50);
+            }
+            else
+            {
+                StdDraw.setPenColor(50, 205, 50);
+            }
             StdDraw.setPenRadius(0.015);
             StdDraw.square(centreX, centreY, tailleCase / 2.0);
             StdDraw.setPenRadius();
+        }
+        // Contour ROUGE autour des pions qui PEUVENT faire une rafle (même non sélectionnés)
+        else if (!raflesDisponibles.isEmpty() && !pionSelectionne)
+        {
+            Position pos = new Position(ligne, colonne);
+            Pion pion = plateau.obtenirPion(pos);
+            
+            if (pion != null)
+            {
+                // Vérifier si ce pion peut faire une rafle maximale
+                for (Rafle r : raflesDisponibles)
+                {
+                    if (r.getDepart().equals(pos))
+                    {
+                        StdDraw.setPenColor(255, 50, 50);
+                        StdDraw.setPenRadius(0.015);
+                        StdDraw.square(centreX, centreY, tailleCase / 2.0);
+                        StdDraw.setPenRadius();
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -113,24 +215,33 @@ public class Gestionnaire_Interface
             {
                 if (cases[i][j] != null)
                 {
-                    dessinerPion(i, j, cases[i][j]);
+                    // Griser les pions capturés dans la rafle en cours
+                    boolean estCapture = rafleEnCours != null && rafleEnCours.pionDejaCapture(new Position(i, j));
+                    dessinerPion(i, j, cases[i][j], estCapture);
                 }
             }
         }
     }
 
-    private void dessinerPion(int ligne, int colonne, Pion pion)
+    private void dessinerPion(int ligne, int colonne, Pion pion, boolean estCapture)
     {
         double centreX = colonne * tailleCase + tailleCase / 2.0;
         double centreY = ligne * tailleCase + tailleCase / 2.0;
         double rayon = tailleCase / 2.8;
         
         // Ombre du pion
-        StdDraw.setPenColor(new Color(50, 50, 50, 100));
-        StdDraw.filledCircle(centreX + 2, centreY - 2, rayon);
+        if (!estCapture)
+        {
+            StdDraw.setPenColor(new Color(50, 50, 50, 100));
+            StdDraw.filledCircle(centreX + 2, centreY - 2, rayon);
+        }
         
         // Couleur du pion
-        if (pion.estNoir())
+        if (estCapture)
+        {
+            StdDraw.setPenColor(new Color(150, 150, 150, 150));
+        }
+        else if (pion.estNoir())
         {
             StdDraw.setPenColor(20, 20, 20);
         }
@@ -140,28 +251,31 @@ public class Gestionnaire_Interface
         }
         StdDraw.filledCircle(centreX, centreY, rayon);
         
-        // Contour du pion
-        StdDraw.setPenColor(0, 0, 0);
-        StdDraw.setPenRadius(0.005);
-        StdDraw.circle(centreX, centreY, rayon);
-        StdDraw.setPenRadius();
-        
-        // Brillance
-        StdDraw.setPenColor(new Color(255, 255, 255, 150));
-        StdDraw.filledCircle(centreX - rayon/3, centreY + rayon/3, rayon/4);
-
-        // Symbole pour les dames
-        if (pion.estDame())
+        if (!estCapture)
         {
-            StdDraw.setPenColor(255, 255, 255);
-            StdDraw.setPenRadius(0.008);
-            StdDraw.circle(centreX, centreY, rayon / 2.0);
-            StdDraw.circle(centreX, centreY, rayon / 2.5);
+            // Contour du pion
+            StdDraw.setPenColor(0, 0, 0);
+            StdDraw.setPenRadius(0.005);
+            StdDraw.circle(centreX, centreY, rayon);
             StdDraw.setPenRadius();
+            
+            // Brillance
+            StdDraw.setPenColor(new Color(255, 255, 255, 150));
+            StdDraw.filledCircle(centreX - rayon/3, centreY + rayon/3, rayon/4);
+
+            // Symbole pour les dames
+            if (pion.estDame())
+            {
+                StdDraw.setPenColor(255, 255, 255);
+                StdDraw.setPenRadius(0.008);
+                StdDraw.circle(centreX, centreY, rayon / 2.0);
+                StdDraw.circle(centreX, centreY, rayon / 2.5);
+                StdDraw.setPenRadius();
+            }
         }
     }
 
-    private void afficherInfosJoueur(Joueur joueurActuel)
+    private void afficherInfosJoueur(Joueur joueurActuel, List<Rafle> raflesDisponibles)
     {
         double largeur = taillePlateau * tailleCase;
         double hauteur = taillePlateau * tailleCase;
@@ -171,9 +285,23 @@ public class Gestionnaire_Interface
         StdDraw.filledRectangle(largeur / 2.0, hauteur + 25, largeur / 2.0, 25);
         
         // Texte
-        StdDraw.setPenColor(0, 0, 0);
         StdDraw.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 16));
-        StdDraw.text(largeur / 2.0, hauteur + 25, joueurActuel.toString());
+        
+        String texte = joueurActuel.toString();
+        
+        // Ajouter indication si capture obligatoire
+        if (!raflesDisponibles.isEmpty())
+        {
+            StdDraw.setPenColor(255, 0, 0);
+            int maxCaptures = raflesDisponibles.get(0).getNombreCaptures();
+            texte += " - RAFLE OBLIGATOIRE (" + maxCaptures + " pions)";
+        }
+        else
+        {
+            StdDraw.setPenColor(0, 0, 0);
+        }
+        
+        StdDraw.text(largeur / 2.0, hauteur + 25, texte);
         StdDraw.setFont();
     }
 
@@ -217,6 +345,8 @@ public class Gestionnaire_Interface
     {
         this.caseSelectionnee = null;
         this.pionSelectionne = false;
+        this.rafleEnCours = null;
+        this.etapeRafle = 0;
     }
 
     public boolean aPionSelectionne()
@@ -227,5 +357,26 @@ public class Gestionnaire_Interface
     public Position obtenirSelection()
     {
         return caseSelectionnee;
+    }
+    
+    public void demarrerRafle(Rafle rafle)
+    {
+        this.rafleEnCours = rafle;
+        this.etapeRafle = 0;
+    }
+    
+    public void avancerEtapeRafle()
+    {
+        this.etapeRafle++;
+    }
+    
+    public Rafle getRafleEnCours()
+    {
+        return rafleEnCours;
+    }
+    
+    public int getEtapeRafle()
+    {
+        return etapeRafle;
     }
 }

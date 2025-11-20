@@ -1,3 +1,4 @@
+
 public class Plateau
 {
     private Pion[][] cases;
@@ -74,5 +75,39 @@ public class Plateau
     public Pion[][] getCases()
     {
         return cases;
+    }
+
+    public Plateau copier()
+    {
+        Plateau copie = new Plateau(taille);
+        for (int i = 0; i < taille; i++)
+        {
+            for (int j = 0; j < taille; j++)
+            {
+                if (cases[i][j] != null)
+                {
+                    copie.cases[i][j] = new Pion(cases[i][j].estNoir(), cases[i][j].estDame());
+                }
+                else
+                {
+                    copie.cases[i][j] = null;
+                }
+            }
+        }
+        return copie;
+    }
+
+    public boolean joueurPeutCapturer(Joueur joueur)
+    {
+        CalculateurRafles calc = new CalculateurRafles(this);
+        java.util.List<Rafle> rafles = calc.trouverToutesLesRafles(joueur);
+        return !rafles.isEmpty();
+    }
+
+    public boolean pionPeutCapturer(Position position, Pion pion)
+    {
+        CalculateurRafles calc = new CalculateurRafles(this);
+        java.util.List<Rafle> rafles = calc.calculerRaflesDepuisPosition(position, pion);
+        return !rafles.isEmpty();
     }
 }

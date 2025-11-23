@@ -99,14 +99,14 @@ public class Plateau
 
     public boolean joueurPeutCapturer(Joueur joueur)
     {
-        CalculateurRafles calc = new CalculateurRafles(this);
+        Calculateur_Rafles calc = new Calculateur_Rafles(this);
         java.util.List<Rafle> rafles = calc.trouverToutesLesRafles(joueur);
         return !rafles.isEmpty();
     }
 
     public boolean pionPeutCapturer(Position position, Pion pion)
     {
-        CalculateurRafles calc = new CalculateurRafles(this);
+        Calculateur_Rafles calc = new Calculateur_Rafles(this);
         java.util.List<Rafle> rafles = calc.calculerRaflesDepuisPosition(position, pion);
         return !rafles.isEmpty();
     }

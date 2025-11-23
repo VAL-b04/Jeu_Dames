@@ -9,6 +9,7 @@ public class Gestionnaire_Interface
     private boolean pionSelectionne;
     private Rafle rafleEnCours;
     private int etapeRafle;
+    private boolean abandonneClique;
 
     public Gestionnaire_Interface(int tailleCase, int taillePlateau)
     {
@@ -18,6 +19,7 @@ public class Gestionnaire_Interface
         this.pionSelectionne = false;
         this.rafleEnCours = null;
         this.etapeRafle = 0;
+        this.abandonneClique = false;
     }
 
     public void initialiserFenetre()
@@ -39,6 +41,7 @@ public class Gestionnaire_Interface
         dessinerCasesDisponibles(plateau, joueurActuel, raflesDisponibles);
         dessinerPions(plateau);
         afficherInfosJoueur(joueurActuel, raflesDisponibles);
+        afficherBoutonAbandon();
         StdDraw.show();
     }
 
@@ -305,12 +308,66 @@ public class Gestionnaire_Interface
         StdDraw.setFont();
     }
 
+    private void afficherBoutonAbandon()
+    {
+        double largeur = taillePlateau * tailleCase;
+        double hauteur = taillePlateau * tailleCase;
+        double boutonX = largeur - 65;
+        double boutonY = hauteur + 25;
+        double largeurBouton = 70;
+        double hauteurBouton = 28;
+        
+        boolean estSurBouton = isInsideButton(StdDraw.mouseX(), StdDraw.mouseY(), 
+                                              boutonX - largeurBouton / 2.0, boutonX + largeurBouton / 2.0,
+                                              boutonY - hauteurBouton / 2.0, boutonY + hauteurBouton / 2.0);
+        
+        // Fond du bouton
+        if (estSurBouton)
+        {
+            StdDraw.setPenColor(200, 50, 50);
+        }
+        else
+        {
+            StdDraw.setPenColor(231, 76, 60);
+        }
+        StdDraw.filledRectangle(boutonX, boutonY, largeurBouton / 2.0, hauteurBouton / 2.0);
+        
+        // Contour
+        StdDraw.setPenColor(20, 20, 20);
+        StdDraw.setPenRadius(0.003);
+        StdDraw.rectangle(boutonX, boutonY, largeurBouton / 2.0, hauteurBouton / 2.0);
+        StdDraw.setPenRadius();
+        
+        // Texte
+        StdDraw.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 12));
+        StdDraw.setPenColor(255, 255, 255);
+        StdDraw.text(boutonX, boutonY, "ABANDON");
+    }
+
+    private static boolean isInsideButton(double x, double y, double xMin, double xMax, double yMin, double yMax)
+    {
+        return x >= xMin && x <= xMax && y >= yMin && y <= yMax;
+    }
+
     public Position obtenirClicSouris()
     {
         if (StdDraw.isMousePressed())
         {
             double mouseX = StdDraw.mouseX();
             double mouseY = StdDraw.mouseY();
+            
+            double largeur = taillePlateau * tailleCase;
+            double hauteur = taillePlateau * tailleCase;
+            double boutonX = largeur - 60;
+            double boutonY = hauteur + 25;
+            
+            // Vérifier si le bouton Abandon est cliqué
+            if (isInsideButton(mouseX, mouseY, boutonX - 25, boutonX + 25, boutonY - 15, boutonY + 15))
+            {
+                abandonneClique = true;
+                attendreRelachementSouris();
+                return null;
+            }
 
             int colonne = (int)(mouseX / tailleCase);
             int ligne = (int)(mouseY / tailleCase);
@@ -378,5 +435,12 @@ public class Gestionnaire_Interface
     public int getEtapeRafle()
     {
         return etapeRafle;
+    }
+
+    public boolean estAbandonneClique()
+    {
+        boolean resultat = abandonneClique;
+        abandonneClique = false;
+        return resultat;
     }
 }

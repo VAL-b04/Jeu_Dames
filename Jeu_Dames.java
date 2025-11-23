@@ -7,18 +7,24 @@ public class Jeu_Dames
     private Joueur joueur2;
     private Joueur joueurActuel;
     private Gestionnaire_Interface gestionnaireInterface;
-    private CalculateurRafles calculateurRafles;
+    private Calculateur_Rafles calculateurRafles;
     private List<Rafle> raflesMaximalesDisponibles;
+    private Menu menu;
     
     private static final int TAILLE_CASE = 100;
     private static final int TAILLE_PLATEAU = 8;
 
     public Jeu_Dames()
     {
+        menu = new Menu();
+    }
+
+    private void initialiserPartie()
+    {
         plateau = new Plateau(TAILLE_PLATEAU);
         initialiserJoueurs();
         gestionnaireInterface = new Gestionnaire_Interface(TAILLE_CASE, TAILLE_PLATEAU);
-        calculateurRafles = new CalculateurRafles(plateau);
+        calculateurRafles = new Calculateur_Rafles(plateau);
         raflesMaximalesDisponibles = null;
     }
 
@@ -55,19 +61,60 @@ public class Jeu_Dames
 
     public void demarrer()
     {
+        menu.initialiserFenetre();
+        afficherMenuAccueil();
+    }
+
+    private void afficherMenuAccueil()
+    {
+        while (true)
+        {
+            menu.afficher();
+            menu.traiterClicMenuPrincipal();
+            
+            if (menu.getModeJeu() == 2) // Mode jeu lancé
+            {
+                lancerPartie();
+                break;
+            }
+            
+            StdDraw.pause(50);
+        }
+    }
+
+    private void lancerPartie()
+    {
+        initialiserPartie();
         gestionnaireInterface.initialiserFenetre();
         raflesMaximalesDisponibles = calculerRaflesMaximales();
         gestionnaireInterface.afficher(plateau, joueurActuel, raflesMaximalesDisponibles);
 
-        while (true)
+        boolean partieEnCours = true;
+        try
         {
-            traiterTour();
-            
-            if (verifierFinPartie())
+            while (partieEnCours)
             {
-                break;
+                traiterTour();
+                
+                if (verifierFinPartie())
+                {
+                    partieEnCours = false;
+                }
             }
         }
+        catch (RuntimeException e)
+        {
+            if (e.getMessage().equals("ABANDON"))
+            {
+                // L'abandon a été traité dans traiterTour()
+            }
+            else
+            {
+                throw e;
+            }
+        }
+        
+        afficherMenuAccueil();
     }
 
     private List<Rafle> calculerRaflesMaximales()
@@ -79,6 +126,16 @@ public class Jeu_Dames
     private void traiterTour()
     {
         Position position = gestionnaireInterface.obtenirClicSouris();
+        
+        // Vérifier si le bouton Abandon est cliqué
+        if (gestionnaireInterface.estAbandonneClique())
+        {
+            Joueur gagnant = (joueurActuel == joueur1) ? joueur2 : joueur1;
+            String nomGagnant = gagnant.estNoir() ? "Les Noirs" : "Les Jaunes";
+            System.out.println(nomGagnant + " ont remporté la partie (l'adversaire a abandonné) !");
+            afficherVictoire(nomGagnant);
+            throw new RuntimeException("ABANDON");
+        }
         
         if (position != null)
         {
@@ -338,14 +395,28 @@ public class Jeu_Dames
         if (joueur1.aPerdu())
         {
             System.out.println("\n" + joueur2.getNom() + " a gagné !");
+            afficherVictoire("Les Jaunes");
             return true;
         }
         else if (joueur2.aPerdu())
         {
             System.out.println("\n" + joueur1.getNom() + " a gagné !");
+            afficherVictoire("Les Noirs");
             return true;
         }
         return false;
+    }
+
+    private void afficherVictoire(String gagnant)
+    {
+        menu.afficherVictoire(gagnant);
+        
+        while (menu.getModeJeu() == 1) // MODE_FIN_PARTIE
+        {
+            menu.afficher();
+            menu.traiterClicVictoire();
+            StdDraw.pause(50);
+        }
     }
 
     public static void main(String[] args)
